@@ -1,0 +1,10 @@
+body{
+    background-color: aquamarine;
+}
+.fullbody{
+   text-align: center;
+    
+}
+.Selector{
+    display: flex;
+}
