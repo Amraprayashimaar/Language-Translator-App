@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import LanguageSelector from './LanguageSelector';
 import TextInput from './TextInput';
 import { useSpeechSynthesis } from 'react-speech-kit';
-import './Translator.css'
+import './Translator.css';
+
 const languages = [
   { code: 'en', name: 'English' },
   { code: 'hi', name: 'Hindi' },
@@ -23,47 +23,42 @@ const languages = [
   { code: 'th', name: 'Thai' },
 ];
 
+const randomWords = ['Hello', 'World', 'React', 'Translate', 'Game', 'Challenge', 'Victory', 'Random'];
+
 const Translator = () => {
   const [sourceLanguage, setSourceLanguage] = useState('en');
   const [targetLanguage, setTargetLanguage] = useState('es');
   const [text, setText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [error, setError] = useState(null);
-  const [voices, setVoices] = useState([]);
   const { speak } = useSpeechSynthesis();
-  const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState(null);
+  const [score, setScore] = useState(0);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [quizQuestion, setQuizQuestion] = useState(null);
+  const [quizOptions, setQuizOptions] = useState([]);
+  const [scrambledWord, setScrambledWord] = useState('');
+  const [userScrambleAnswer, setUserScrambleAnswer] = useState('');
+  const [timer, setTimer] = useState(30);
+  const [gameActive, setGameActive] = useState(false);
 
-  // Load available voices when the component mounts
   useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-    };
-
-    // In some browsers, the voices are not available immediately
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }, []);
+    if (gameActive && timer > 0) {
+      const interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [gameActive, timer]);
 
   const handleTranslate = async () => {
-    setError(null); // Reset error before each translation attempt
+    setError(null);
     try {
       const response = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-          text
-        )}&langpair=${sourceLanguage}|${targetLanguage}`
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLanguage}|${targetLanguage}`
       );
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      }
-
       const data = await response.json();
       if (data.responseData.translatedText) {
         setTranslatedText(data.responseData.translatedText);
       } else {
-        setError('Translation failed. Please try again.');
+        setError('Translation failed.');
       }
     } catch (err) {
       setError(`Translation error: ${err.message}`);
@@ -71,103 +66,75 @@ const Translator = () => {
   };
 
   const handleTextToSpeech = () => {
-    // Find a voice that matches the target language
-    const voice = voices.find((v) => v.lang.startsWith(targetLanguage));
-
-    if (!voice) {
-      setError(`Sorry, no voice is available for the language: ${targetLanguage}`);
-      return;
-    }
-
-    speak({ text: translatedText, voice, lang: targetLanguage });
+    speak({ text: translatedText, lang: targetLanguage });
   };
 
-  const startListening = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError("Sorry, your browser doesn't support speech recognition.");
-      return;
-    }
-
-    const recognitionInstance = new SpeechRecognition();
-    recognitionInstance.lang = sourceLanguage;
-    recognitionInstance.interimResults = false;
-    recognitionInstance.maxAlternatives = 1;
-
-    recognitionInstance.onresult = (event) => {
-      const speechResult = event.results[0][0].transcript;
-      setText(speechResult);
-    };
-
-    recognitionInstance.onerror = (event) => {
-      setError(`Speech recognition error: ${event.error}`);
-      setIsListening(false);
-    };
-
-    recognitionInstance.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionInstance.start();
-    setRecognition(recognitionInstance);
-    setIsListening(true);
+  const startQuiz = () => {
+    const randomWord = randomWords[Math.floor(Math.random() * randomWords.length)];
+    setQuizQuestion(randomWord);
+    setQuizOptions(['Bonjour', 'Hola', 'Hallo']);
+    setGameActive(true);
+    setTimer(30);
   };
 
-  const stopListening = () => {
-    if (recognition) {
-      recognition.stop();
-      setIsListening(false);
+  const handleQuizAnswer = (answer) => {
+    if (answer === 'Hola') {
+      setScore((prev) => prev + 10);
     }
+    setGameActive(false);
+  };
+
+  const startScrambleGame = () => {
+    const word = randomWords[Math.floor(Math.random() * randomWords.length)];
+    setScrambledWord(word.split('').sort(() => Math.random() - 0.5).join(''));
+    setGameActive(true);
+    setTimer(30);
+  };
+
+  const checkScrambleAnswer = () => {
+    if (userScrambleAnswer === scrambledWord.split('').sort().join('')) {
+      setScore((prev) => prev + 15);
+    }
+    setGameActive(false);
   };
 
   return (
     <div className='fullbody'>
-      <h1 style={{fontSize:'50px'}}>Language Translator with Voice</h1>
-      <h2 style={{color:'blueviolet', fontFamily:'fantasy', fontWeight:'bold'}}>
-  Translate your language here! <span style={{ fontSize: '34px' }}>{"\u{1F4E3}"}</span> Enjoy translating! <span style={{ fontSize: '35px' }}>{"\u{1F50A}"}</span>
-</h2>
-<h2 style={{textAlign:'left', textDecoration:'underline'}}>Select Language.....</h2>
-      <div className='Selector'>
-       
-      <LanguageSelector
-        label="From:"
-        value={sourceLanguage}
-        onChange={(e) => setSourceLanguage(e.target.value)}
-        languages={languages}
-      />
-      <LanguageSelector 
-        label="To:"
-        value={targetLanguage}
-        onChange={(e) => setTargetLanguage(e.target.value)}
-        languages={languages}
-      />
-      </div>
-      <TextInput
-        label="Text to translate:"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
+      <h1>Language Translator with Games</h1>
+      <LanguageSelector label='From:' value={sourceLanguage} onChange={(e) => setSourceLanguage(e.target.value)} languages={languages} />
+      <LanguageSelector label='To:' value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)} languages={languages} />
+      <TextInput label='Text to translate:' value={text} onChange={(e) => setText(e.target.value)} />
+      <button onClick={handleTranslate}>Translate</button>
+      <button onClick={handleTextToSpeech}>Play Translation</button>
+      <TextInput label='Translated Text:' value={translatedText} disabled />
+      
+      <h2>Games</h2>
+      <button onClick={startQuiz}>Start Quiz</button>
+      <button onClick={startScrambleGame}>Start Scramble</button>
 
-      <div style={{ marginTop: "20px" }}>
-        <button onClick={handleTranslate} style={{ marginRight: "10px" }}>
-          Translate
-        </button>
-        <button
-          onClick={isListening ? stopListening : startListening}
-          style={{ marginRight: "10px" }}
-        >
-          {isListening ? "Listening... Click to stop" : "Start Listening"}
-        </button>
-        <button onClick={handleTextToSpeech}>Play Translation</button>
-      </div>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <TextInput
-        label="Translated Text:"
-        value={translatedText}
-        disabled
-      />
+      {gameActive && quizQuestion && (
+        <div>
+          <h3>{quizQuestion}</h3>
+          {quizOptions.map((option, index) => (
+            <button key={index} onClick={() => handleQuizAnswer(option)}>{option}</button>
+          ))}
+          <p>Time Left: {timer} sec</p>
+        </div>
+      )}
+
+      {gameActive && scrambledWord && (
+        <div>
+          <h3>Unscramble: {scrambledWord}</h3>
+          <input type='text' value={userScrambleAnswer} onChange={(e) => setUserScrambleAnswer(e.target.value)} />
+          <button onClick={checkScrambleAnswer}>Submit</button>
+          <p>Time Left: {timer} sec</p>
+        </div>
+      )}
+
+      <p>Score: {score}</p>
     </div>
   );
 };
 
 export default Translator;
+
