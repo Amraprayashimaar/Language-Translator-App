@@ -156,7 +156,7 @@ const Translator = () => {
           onClick={isListening ? stopListening : startListening}
           style={{ marginRight: "10px" }}
         >
-          {isListening ? "Stop Listening" : "Start Listening"}
+          {isListening ? "Listening... Click to stop" : "Start Listening"}
         </button>
         <button onClick={handleTextToSpeech}>Play Translation</button>
       </div>
