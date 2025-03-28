@@ -1,4 +1,4 @@
-You said:
+
 import React, { useState, useEffect } from 'react';
 import LanguageSelector from './LanguageSelector';
 import TextInput from './TextInput';
